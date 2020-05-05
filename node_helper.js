@@ -16,7 +16,7 @@ const moduleruntime = new Date();
 //this is done by making a note of the last timestamp data of feeds sent to the module, tracked at the financefeeds level
 //and ignoring anything older than that
 
-//as some feeds wont have a timestamp date, they will be allocated a pseudo timestamp date of the latest timestamp date in the current processed jsonfeeds
+//as some feeds wont have a timestamp date, they will be allocated a pseudo timestamp date of the latest timestamp date in the current processed financefeeds
 
 //if the module calls a RESET, then the date tracking is reset and all data will be sent (TODO)
 
@@ -29,6 +29,7 @@ var moment = require("moment");
 var LOG = require('../MMM-FeedUtilities/LOG');
 var QUEUE = require('../MMM-FeedUtilities/queueidea');
 var RSS = require('../MMM-FeedUtilities/RSS');
+var commonutils = require('../MMM-FeedUtilities/utilities');
 
 // get required structures and utilities
 
@@ -118,7 +119,7 @@ module.exports = NodeHelper.create({
 			//store the actual timestamp to start filtering, this will change as new feeds are pulled to the latest date of those feeds
 			//if no date is available on a feed, then the current latest date of a feed published is allocated to it
 
-			feed.lastFeedDate = self.calcTimestamp(configfeed.oldestage);
+			feed.lastFeedDate = commonutils.calcTimestamp(configfeed.oldestage);
 			feed.sourcetitle = configfeed.feedtitle;
 			feed.feedconfig = configfeed;
 
@@ -128,41 +129,6 @@ module.exports = NodeHelper.create({
 
 	},
 
-	calcTimestamp: function (age) {
-
-		//calculate the actual timestamp to use for filtering feeds, 
-		//options are timestamp format, today for midnight + 0.0001 seconds today, or age in minutes
-		//determine the format of the data in age
-
-		var filterDate = new Date();
-
-		if (typeof (age) == 'number') {
-
-			filterDate = new Date(filterDate.getTime() - (age * 60 * 1000));
-
-		}
-		else { //age is hopefully a string ha ha
-
-			if (age.toLowerCase() == 'today') {
-				filterDate = new Date(filterDate.getFullYear(), filterDate.getMonth(), filterDate.getDate(), 0, 0, 0, 0)
-			}
-
-			else { //we assume the user entered a correct date - we can try some basic validation
-
-				if (moment(age, "YYYY-MM-DD HH:mm:ss", true).isValid()) {
-					filterDate = new Date(age);
-				}
-				else {
-
-					console.log(this.name + " Invalid date provided for filter age of feeds:" + age.toString());
-				}
-
-			}
-		}
-
-		return filterDate;
-
-	},
 
 	getconfig: function () { return config; },
 
@@ -216,27 +182,34 @@ module.exports = NodeHelper.create({
 
 		//because we only get one data feed in the chart providers, then we preload the data before letting the jsonfeed actually process it
 
-		//we need to initialise the storage area within the providerstorage.
+		//we need to initialise the storage area within the providerstorage. for all feeds and then stocks 
 
-		this.outputarray = new Array(providerstorage[moduleinstance].config.jsonfeeds.length)// feeds and then items
+		var actualfeedcount = 0;
 
-		for (var cidx = 0; cidx < providerstorage[moduleinstance].config.jsonfeeds.length; cidx++) {
+		providerstorage[moduleinstance].config.financefeeds.forEach(function (feed) {
+			actualfeedcount = actualfeedcount + feed.stocks.length;
+		});
+
+		this.outputarray = new Array(actualfeedcount);
+
+		for (var cidx = 0; cidx < actualfeedcount; cidx++) {
 
 			this.outputarray[cidx] = [];
 		}
-
-		//we pull data back for each feed as the paramaters provided will change the data pulled
+		
+		//we pull data back for each stock feed 
 
 		providerstorage[moduleinstance].trackingfeeddates.forEach(function (feed) {
 
-			feed.stocks.forEach(function (stockfeed) {
+			feed.feedconfig.stocks.forEach(function (stockfeed) {
 
 				//build the url
 
-				var config = providerstorage[moduleinstance].config;
-				var feedconfig = feed.jsonfeeds;				
+				const config = providerstorage[moduleinstance].config;
+				var tempconfig = JSON.parse(JSON.stringify(config));
+				var feedconfig = feed.feedconfig;
 
-				if (config.periodstart == null || config.periodend == null) {
+				if (feedconfig.periodstart == null || feedconfig.periodend == null) {
 					var url = `${config.input}${stockfeed}?range=${feedconfig.periodrange}&interval=${feedconfig.interval}&events=${feedconfig.events}`;
 				}
 				else {
@@ -245,13 +218,11 @@ module.exports = NodeHelper.create({
 					var url = `${config.input}${stockfeed}?period1=${startperiod}&period2=${endperiod}&interval=${feedconfig.interval}&events=${feedconfig.events}`;
 				}
 
-				config.input = url;
+				tempconfig.input = url;
 
-				var inputjson = JSONutils.getJSON(config);
+				var inputjson = JSONutils.getJSON(tempconfig);
 
-				var jsonarray = inputjson[feedconfig.rootkey];
-
-				//this should now be an array that we can process in the simplest case
+				var jsonarray = utilities.getkeyedJSON(inputjson, feedconfig.rootkey);
 
 				//check it actually contains something, assuming if empty it is in error
 
@@ -260,19 +231,15 @@ module.exports = NodeHelper.create({
 					return;
 				}
 
-				if (self.debug) {
-					self.logger[moduleinstance].info("In process feed: " + JSON.stringify(feed));
-					self.logger[moduleinstance].info("In process feed: " + moduleinstance);
-					self.logger[moduleinstance].info("In process feed: " + providerid);
-					self.logger[moduleinstance].info("In process feed: " + feedidx);
-					self.logger[moduleinstance].info("building queue " + self.queue.queue.length);
-				}
+				//add the actual stock to the feed fonfig so we can use it when proicessing feed later
+
+				feed.feedconfig.stock = stockfeed;
 
 				self.queue.addtoqueue(function () { self.processfeed(feed, moduleinstance, providerid, ++feedidx, jsonarray); });
 
 			});
 
-			this.queue.startqueue(providerstorage[moduleinstance].config.waitforqueuetime);
+			self.queue.startqueue(providerstorage[moduleinstance].config.waitforqueuetime);
 
 		});
 		
@@ -314,7 +281,7 @@ module.exports = NodeHelper.create({
 		//and add an id for tracking purposes and wrap that in an array
 
 		var payloadforprovider = {
-			providerid: providerid, source: source, payloadformodule: [{ setid: providerstorage[moduleinstance].trackingfeeddates[feedidx].feedconfig.setid, itemarray: this.outputarray[feedidx] }]
+			providerid: providerid, source: source, payloadformodule: [{ setid: source.sourcetitle, itemarray: this.outputarray[feedidx] }]
 		};
 
 		if (this.debug) {
@@ -337,18 +304,11 @@ module.exports = NodeHelper.create({
 	},
 
 	//now to the core of the system, where there are most different to the feedprovider modules
-	//we enter this for wach of the jsonfeeds we want to create to send back for later processing
+	//we enter this for wach of the financefeeds we want to create to send back for later processing
 
 	processfeed: function (feed, moduleinstance, providerid, feedidx, jsonarray) {
 
-		//we process a feed at a time here
-
-		if (this.debug) {
-			this.logger[moduleinstance].info("In fetch feed: " + JSON.stringify(feed));
-			this.logger[moduleinstance].info("In fetch feed: " + moduleinstance);
-			this.logger[moduleinstance].info("In fetch feed: " + providerid);
-			this.logger[moduleinstance].info("In fetch feed: " + feedidx);
-		}
+		//we process a stock feed at a time here
 
 		var sourcetitle = feed.sourcetitle;
 
@@ -364,90 +324,99 @@ module.exports = NodeHelper.create({
 
 			//look for any key value pairs required and create an item
 			//ignore any items that are older than the max feed date
+			//code specialised for handling the yahoo v8 chart feed
 
-				var processthisitem = false;
+			var processthisitem = true;
+
+			var mainitem = new structures.NDTFItem()
+
+			// the subject is common for this feed as it should be the stock
+
+			if (feed.feedconfig.subject != null) {
+
+				if (feed.feedconfig.subject == 'stock') {
+					mainitem.subject = feed.feedconfig.stock;
+				}
+
+				else {
+					mainitem.subject = utilities.getkeyedJSON(jsonarray[idx], feed.feedconfig.subject);;
+				}
+
+			}
+			else { processthisitem = false; }
+
+			//determine which of the objects to process, using the dot notation keys
+
+			if (feed.feedconfig.object != null) {
+
+				mainitem.object = feed.feedconfig.object
+
+			}
+			else { processthisitem = false; }
+
+			if (feed.feedconfig.value != null) {
+
+				var valuearray = utilities.getkeyedJSON(jsonarray[idx], feed.feedconfig.value);
+
+			}
+			else { processthisitem = false; }
+
+			//now we have an array of values to process 
+			//but we are not pointing at a matching timestamp
+			//so we need to get them as well
+
+			if (feed.feedconfig.timestamp != null && !feed.feedconfig.useruntime) {
+
+				var timestamparray = utilities.getkeyedJSON(jsonarray[idx], feed.feedconfig.timestamp);
+
+			}
+
+			if (valuearray.length != timestamparray.length) {
+				console.error("Something wonderful has happened, it broke !! - array lengths not equal");
+				processthisitem = false;
+			}
+
+			//we should now have 2 matching arrays, values and timestamps, merge them into tempitems and send onwards
+
+			for (var aidx = 0; aidx < valuearray.length; aidx++) {
 
 				var tempitem = new structures.NDTFItem()
 
-				tempitem.object = feed.feedconfig.object;
+				tempitem.subject = mainitem.subject;
+				tempitem.object = mainitem.object;
 
-				//do we have a subject
-
-			if (jsonarray[idx][feed.feedconfig.subject] != null) {
-
-				tempitem.subject = jsonarray[idx][feed.feedconfig.subject];
-
-					//do we have a value
-
-				if (jsonarray[idx][feed.feedconfig.value] != null) {
-
-						//check if numeric 
-
-					if (feed.feedconfig.usenumericoutput) {
-						if (isNaN(parseFloat(jsonarray[idx][feed.feedconfig.value]))) {
-							console.error("Invalid numeric value: " + jsonarray[idx][feed.feedconfig.value]);
-							}
-							else {
-							tempitem.value = parseFloat(jsonarray[idx][feed.feedconfig.value]);
-							}
-						}
-						else {
-							tempitem.value = jsonarray[idx][feed.feedconfig.value];
-						}
-
-						//if the timestamp is requested do we have one of those as well
-
-					if (!feed.feedconfig.useruntime) {
-
-							//got a timestamp key, now validate it
-
-						var temptimestamp = jsonarray[idx][feed.feedconfig.timestamp];
-
-							if (temptimestamp != null) {
-
-								if (feed.feedconfig.timestampformat != null) {
-
-									if (moment(temptimestamp, feed.feedconfig.timestampformat).isValid()) {
-
-										//got a good date
-
-										tempitem.timestamp = moment(temptimestamp, feed.feedconfig.timestampformat).toDate();
-
-										processthisitem = true;
-
-									}
-									else { console.error("Invalid date"); }
-
-								}
-
-								else {
-
-									if (moment(temptimestamp).isValid()) {
-
-										//got a good date
-
-										tempitem.timestamp = moment(temptimestamp).toDate();
-
-										processthisitem = true;
-
-									}
-									else { console.error("Invalid date"); }
-
-								}
-
-							}
-						}
-						else { // use an offset timestamp
-
-						tempitem.timestamp = feed.feedconfig.adjustedruntime;
-
-							processthisitem = true;
-
-						}
-
+				if (feed.feedconfig.usenumericoutput) {
+					if (isNaN(parseFloat(valuearray[aidx]))) {
+						console.error("Invalid numeric value: " + valuearray[aidx]);
 					}
+					else {
+						tempitem.value = parseFloat(valuearray[aidx]);
+					}
+				}
+				else {
+					tempitem.value = valuearray[aidx];
+				}
+
+				//if the timestamp is requested do we have one of those as well
+				//removed all validation at the moment as this isnt genereic 
+
+				var temptimestamp = timestamparray[aidx];
+
+				if (temptimestamp != null) {
+
+					//yahoo timestamps are seconds, so adjust to milliseconds
+					tempitem.timestamp = new Date(temptimestamp * 1000);
 
 				}
+				else { // use an offset timestamp
+
+					tempitem.timestamp = feed.feedconfig.adjustedruntime;
+
+					processthisitem = true;
+
+				}
+
+				//we want to just capture any changes when looking for live updates (intraday) so this may need tweaking
 
 				if (maxfeeddate > tempitem.timestamp) { processthisitem = false };
 
@@ -456,8 +425,7 @@ module.exports = NodeHelper.create({
 					this.outputarray[feedidx].push(tempitem);
 
 				}
-
-				delete tempitem;
+			}
 
 		}  //end of process loop - input array
 
@@ -476,8 +444,8 @@ module.exports = NodeHelper.create({
 
 		var rsssource = new RSS.RSSsource();
 		rsssource.sourceiconclass = '';
-		rsssource.sourcetitle = feed.sourcetitle;
-		rsssource.title = feed.sourcetitle;
+		rsssource.sourcetitle = feed.feedconfig.setid;
+		rsssource.title = feed.feedconfig.setid;
 
 		self.send(moduleinstance, providerid, rsssource, feedidx);
 		self.done();

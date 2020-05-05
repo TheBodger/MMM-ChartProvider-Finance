@@ -47,12 +47,12 @@ Module.register("MMM-ChartProvider-Finance", {
 			{
 				feedname: null,
 				setid: null,			// | Yes | the setif of this particular data, used to identify the data when revived in display module
-				rootkey: '',            // | No | the key value to determine at what level to extract data | a valid string | the first level
-				subject: null,          // | Yes | the KEY name to use as a subject for an item | any valid string | none
-				object: null,           // | Yes | the object to insert into the item | any valid string | none
-				value: null,            // | Yes | the KEY name to use to for the value field of the item | any valid string | none
+				rootkey: 'chart.result',// | No | the key value(s) to determine at what level to extract data | a valid string | the first level
+				object: null,			// | Yes | the KEY name(s) to use as an object for an item | expected to be indicators.quote.close,high,low,open,volume | none
+				subject: 'stock',       // | Yes | the subject to insert into the item | any valid string | 'Stock' - the stock being extracted
+				value: null,          // | Yes | the KEY name to use to for the value field of the item | any valid string | the key name in the object field if null
 				type: "string",         // | No | the type of the value when added to the output item | numeric(will validate using parsefloat) or string | string
-				timestamp: 0,           // | No | the KEY name of a timestamp to use for the timestamp field value in the item, or an offset from the runtime of the module as a number | any valid string(timestamp uses loose moment to validate) Or a negaitive or positive integer of seconds to offset from the tun time | the timestamp of running the module (i.e. use offset of 0)
+				timestamp: 'timestamp', // | No | the KEY name(s) of a timestamp to use for the timestamp field value in the item, | dot notation of timestamp from root key | 'timestamp'
 				timestampformat: null,  // | No | a moment compatible timestamp format used to validate any dates found | timestamp string | Null - dont use any format
 				filename: null,         // | No | local file name(no paths) to save a serialised version of the extracted data as an array of items | any valid filename or not defined for no output.| none
 				oldestage: 'today',		//  oldestage:	indicates how young a feed/data within a feed must be to be considered either ,
@@ -92,7 +92,7 @@ Module.register("MMM-ChartProvider-Finance", {
 		for (var jidx = 0; jidx < config.financefeeds.length; jidx++) {
 			this.config.financefeeds[jidx] = Object.assign({}, this.defaults.financefeeds[0], config.financefeeds[jidx]);
 		}
-		this.config['input'] = https://query1.finance.yahoo.com/v8/finance/chart/
+		this.config['input'] = 'https://query1.finance.yahoo.com/v8/finance/chart/';
 	},
 
 	showElapsed: function () {
