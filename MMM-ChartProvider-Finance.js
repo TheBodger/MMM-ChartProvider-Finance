@@ -39,7 +39,7 @@ Module.register("MMM-ChartProvider-Finance", {
 		text: "MMM-ChartProvider-JSON",
 		consumerids: ["MMFD1"], // the unique id of the consumer(s) to listen out for
 		id: "MMFP1", //the unique id of this provider
-		datarefreshinterval: 1000*60*60,	//milliseconds to pause before checking for new data // common timer for all consumers
+		datarefreshinterval: 6000*60,	//milliseconds to pause before checking for new data // common timer for all consumers
 											//tune to keep queue from clogging up
 											//one or more definitions of how the data in input will be processed
 											//to produce array of item(s) keyed on the feedtitle
@@ -91,6 +91,11 @@ Module.register("MMM-ChartProvider-Finance", {
 		this.config = Object.assign({}, this.defaults, config);
 		for (var jidx = 0; jidx < config.financefeeds.length; jidx++) {
 			this.config.financefeeds[jidx] = Object.assign({}, this.defaults.financefeeds[0], config.financefeeds[jidx]);
+			this.config.financefeeds[jidx]["useruntime"] = false;
+			if (typeof this.config.financefeeds[jidx].timestamp == "number") { //wants an offset of the runtime, provided in seconds, or it was blank
+				this.config.financefeeds[jidx]["useruntime"] = true;
+				this.config.financefeeds[jidx]["adjustedruntime"] = new Date(moduleruntime.getTime() + (this.config.financefeeds[jidx].timestamp * 1000));
+			}
 		}
 		this.config['input'] = 'https://query1.finance.yahoo.com/v8/finance/chart/';
 	},
