@@ -50,7 +50,6 @@ To use this module, add the following minimum configuration block to the modules
 | `consumerids`            | *Required* - a list of 1 or more consumer modules this module will provide for.<br><br> **Possible values:** An array of strings exactly matching the ID of one or more MMM-ChartDisplay modules <br> **Default value:** none
 | `id`         | *Required* - The unique ID of this provider module<br><br> **Possible values:** any unique string<br> **Default value:** none
 | `datarefreshinterval`            | *Optional* - milliseconds to pause before checking for new data in the feeds.<br><br> **Possible values:** a number in milliseconds <br> **Default value:** `6000*60` 
-| `input`            | *Required* - the local filename with file path relative to the Magicmirror folder or  the URL of the JSON feed<br><br> **Possible values:** any valid file and path or URL <br> **Default value:** none
 | `financefeeds`        | *Required* - An array of one or more feed definitions, see below for the financefeeds configuration options 
 | `waitforqueuetime`            |*Ignore* -  Queue delay between ending one queue item and starting the next <br><br> **Possible values:** a number in milliseconds. <br> **Default value:** `10`
 | `financefeed Format`            |
@@ -108,4 +107,6 @@ this configuration produces stock information for 4 stocks. Note the use of dot 
 This is a WIP; changes are being made all the time to improve the compatibility across the modules. Please refresh this and the MMM-feedUtilities and MMM-ChartUtilities modules with a `git pull` in the relevant modules folders.
 
 The availability of the yahoo finance feeds can change sporadically or altogether.
+
+The yahoo finance feed cannot currently be read by the MMM-ChartProvider-JSON module.
 
