@@ -49,7 +49,7 @@ Module.register("MMM-ChartProvider-Finance", {
 				setid: null,			// | Yes | the setif of this particular data, used to identify the data when revived in display module
 				rootkey: 'chart.result',// | No | the key value(s) to determine at what level to extract data | a valid string | the first level
 				object: null,			// | Yes | the KEY name(s) to use as an object for an item | expected to be indicators.quote.close,high,low,open,volume | none
-				subject: 'stock',       // | Yes | the subject to insert into the item | any valid string | 'Stock' - the stock being extracted
+				subject: 'stock',       // | No | the subject to insert into the item | any valid string | 'Stock' - the stock being extracted
 				value: null,          // | Yes | the KEY name to use to for the value field of the item | any valid string | the key name in the object field if null
 				type: "string",         // | No | the type of the value when added to the output item | numeric(will validate using parsefloat) or string | string
 				timestamp: 'timestamp', // | No | the KEY name(s) of a timestamp to use for the timestamp field value in the item, | dot notation of timestamp from root key | 'timestamp'
