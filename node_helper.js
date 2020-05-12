@@ -191,8 +191,6 @@ module.exports = NodeHelper.create({
 
 		providerstorage[moduleinstance].trackingfeeddates.forEach(function (feed) {
 
-			var newfeed = JSON.parse(JSON.stringify(feed));  //need a deep copy 
-
 			//build the url
 
 			const config = providerstorage[moduleinstance].config;
