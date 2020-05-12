@@ -212,43 +212,23 @@ module.exports = NodeHelper.create({
 
 			tempconfig.input = url;
 
-			const options = new URL(url);
+			var inputjson = JSONutils.getJSON(tempconfig);
 
-			var JSONconfig = {
-				options: options,
-				config: tempconfig,
-				feed: feed,
-				moduleinstance: moduleinstance,
-				providerid: providerid,
-				feedidx: feedidx,
-			};
+			var jsonarray = utilities.getkeyedJSON(inputjson, feedconfig.rootkey);
 
-			JSONconfig['callback'] = function (JSONconfig, inputjson) {
+			//check it actually contains something, assuming if empty it is in error
 
-				//const req = https.request(options, (res) => {
-				//	// ...
-				//});
-
-				//var inputjson = JSONutils.getJSONnew(JSONconfig);
-
-				var jsonarray = utilities.getkeyedJSON(inputjson, feedconfig.rootkey);
-
-				//check it actually contains something, assuming if empty it is in error
-
-				if (jsonarray.length == 0) {
-					console.error("json array is empty");
-					return null;
-				}
-
-				self.queue.addtoqueue(function () { self.processfeed(JSONconfig.feed, JSONconfig.moduleinstance, JSONconfig.providerid, ++JSONconfig.feedidx, jsonarray); });
-
-				self.queue.startqueue(providerstorage[JSONconfig.moduleinstance].config.waitforqueuetime); //the start function ignores a start once started
+			if (jsonarray.length == 0) {
+				console.error("json array is empty");
+				return;
 			}
 
-			JSONutils.getJSONnew(JSONconfig);
+			self.queue.addtoqueue(function () { self.processfeed(feed, moduleinstance, providerid, ++feedidx, jsonarray); });
 
 		});
 
+		self.queue.startqueue(providerstorage[moduleinstance].config.waitforqueuetime);
+		
 	},
 
 	showstatus: function (moduleinstance) {
@@ -389,6 +369,7 @@ module.exports = NodeHelper.create({
 				var timestamparray = utilities.getkeyedJSON(jsonarray[idx], feed.feedconfig.timestamp);
 
 			}
+
 
 			if (valuearray.length != timestamparray.length) {
 				console.error("Something wonderful has happened, it broke !! - array lengths not equal");
