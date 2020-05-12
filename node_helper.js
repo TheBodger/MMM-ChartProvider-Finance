@@ -94,13 +94,37 @@ module.exports = NodeHelper.create({
 
 		var self = this;
 
-		//store the required data for the processesing and have as many feeds as there are incoming feeds and stocks!
+		//store the required data for the processing and have as many feeds as there are incoming feeds and stocks!
 
 		var totalfeedcount = 0;
 
 		providerstorage[moduleinstance].config.financefeeds.forEach(function (configfeed) {
 
 			configfeed.stocks.forEach(function (stockfeed) {
+
+				//amend the addresses in the config to dot notation depending on the input if prefixed by @
+				//all are full addresses with0ut the rootkey as that is used to extract the core of the JSON in yahoo
+				//if the root key is changed from the default then this wont work
+				const defaultrootkey = 'chart.result';
+				const dotnotationkeys = {
+					'@close': 'chart.result.indicators.quote.0.close',
+					'@open': 'chart.result.indicators.quote.0.open',
+					'@high': 'chart.result.indicators.quote.0.high',
+					'@low': 'chart.result.indicators.quote.0.low',
+					'@volume': 'chart.result.indicators.quote.0.volume',
+					'@timestamp': 'chart.result.timestamp',
+					'@adjclose': 'chart.result.indicators.adjclose'
+					}
+
+				if ((dotnotationkeys[configfeed.value] != null || dotnotationkeys[configfeed.timestamp] != null || dotnotationkeys[configfeed.object] != null || dotnotationkeys[configfeed.subject] != null) && configfeed.rootkey != defaultrootkey) {
+					console.error("if using the @ key names, the root key must be left as default");
+				}
+				else {
+					if (dotnotationkeys[configfeed.value] != null) { configfeed.value = dotnotationkeys[configfeed.value].replace(defaultrootkey+'.', '');}
+					if (dotnotationkeys[configfeed.timestamp] != null) { configfeed.timestamp = dotnotationkeys[configfeed.timestamp].replace(defaultrootkey + '.', ''); }
+					if (dotnotationkeys[configfeed.object] != null) { configfeed.object = dotnotationkeys[configfeed.object].replace(defaultrootkey + '.', ''); }
+					if (dotnotationkeys[configfeed.subject] != null) { configfeed.subject = dotnotationkeys[configfeed.subject].replace(defaultrootkey + '.', ''); }
+				}
 
 				var feed = { sourcetitle: '', lastFeedDate: '', latestfeedpublisheddate: new Date(0), feedconfig: configfeed, stock: stockfeed};
 

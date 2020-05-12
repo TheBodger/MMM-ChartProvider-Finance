@@ -43,6 +43,9 @@ Module.register("MMM-ChartProvider-Finance", {
 											//tune to keep queue from clogging up
 											//one or more definitions of how the data in input will be processed
 											//to produce array of item(s) keyed on the feedtitle
+											//
+											//certain key names can be prefixed with @ these use currently known addresses within the JSON to obtain that key
+											// i.e. @open will get the open value for the stock from indicators.quote.0.open
 		financefeeds: [
 			{
 				feedname: null,
@@ -50,9 +53,9 @@ Module.register("MMM-ChartProvider-Finance", {
 				rootkey: 'chart.result',// | No | the key value(s) to determine at what level to extract data | a valid string | the first level
 				object: null,			// | Yes | the KEY name(s) to use as an object for an item | expected to be indicators.quote.close,high,low,open,volume | none
 				subject: 'stock',       // | No | the subject to insert into the item | any valid string | 'Stock' - the stock being extracted
-				value: null,          // | Yes | the KEY name to use to for the value field of the item | any valid string | the key name in the object field if null
+				value: null,          // | Yes | @close,@open,@high,@low,@volume,@timestamp,@adjclose the KEY name to use to for the value field of the item | any valid string | the key name in the object field if null
 				type: "string",         // | No | the type of the value when added to the output item | numeric(will validate using parsefloat) or string | string
-				timestamp: 'timestamp', // | No | the KEY name(s) of a timestamp to use for the timestamp field value in the item, | dot notation of timestamp from root key | 'timestamp'
+				timestamp: '@timestamp', // | No |@close,@open,@high,@low,@volume,@timestamp,@adjclose the KEY name(s) of a timestamp to use for the timestamp field value in the item, | dot notation of timestamp from root key | 'timestamp'
 				timestampformat: null,  // | No | a moment compatible timestamp format used to validate any dates found | timestamp string | Null - dont use any format
 				filename: null,         // | No | local file name(no paths) to save a serialised version of the extracted data as an array of items | any valid filename or not defined for no output.| none
 				oldestage: 'today',		//  oldestage:	indicates how young a feed/data within a feed must be to be considered either ,
