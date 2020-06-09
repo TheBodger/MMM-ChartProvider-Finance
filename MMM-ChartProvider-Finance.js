@@ -50,7 +50,8 @@ Module.register("MMM-ChartProvider-Finance", {
 			{
 				feedname: null,
 				setid: null,			// | Yes | the setif of this particular data, used to identify the data when revived in display module
-				rootkey: 'chart.result',// | No | the key value(s) to determine at what level to extract data | a valid string | the first level
+				rootkey: 'chart.result',// | No | the key value(s) in dot notation to determine at what level to extract data | a valid string | the first level
+				errorkey: 'chart.error',// | No | the key value(s) in dot notation to determine at what level to extract error | a valid string | the first level
 				object: null,			// | Yes | the KEY name(s) to use as an object for an item | expected to be indicators.quote.close,high,low,open,volume | none
 				subject: 'stock',       // | No | the subject to insert into the item | any valid string | 'Stock' - the stock being extracted
 				value: null,          // | Yes | @close,@open,@high,@low,@volume,@timestamp,@adjclose the KEY name to use to for the value field of the item | any valid string | the key name in the object field if null
@@ -63,8 +64,10 @@ Module.register("MMM-ChartProvider-Finance", {
 										//				the word today for midnight today, 
 										//				the number of minutes old as an integer
 				stocks: null,			//	an array of stock identifiers
-				periodstart: null,		//  a valid date instace (will be converted internally to unix number of seconds ... (not milliseconds))
-				periodend: null,		//  a valid date instace (will be converted internally to unix number of seconds ... (not milliseconds))
+				usenames: false,			//  use the meta data provided to name the stock in the output
+				stocknames: null,		//  an array of names to use instead of the stock tickers if usemeta = true
+				periodstart: null,		//  a valid date instance (will be converted internally to unix number of seconds ... (not milliseconds))
+				periodend: null,		//  a valid date instance (will be converted internally to unix number of seconds ... (not milliseconds))
 				periodrange: 'ytd',		//	one of the valid periods to extract - default unless both periodstart and periodend are defined
 										//	1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, max
 				interval: '1d',			//	one of the valid intervals to extract
@@ -74,7 +77,7 @@ Module.register("MMM-ChartProvider-Finance", {
 			},
 
 		],
-		waitforqueuetime: 0010, //dont change this - it simply helps the queue processor to run with a controlled internal loop
+		waitforqueuetime: 0010, //don't change this - it simply helps the queue processor to run with a controlled internal loop
 	},
 
 	start: function () {
@@ -101,6 +104,10 @@ Module.register("MMM-ChartProvider-Finance", {
 			}
 		}
 		this.config['input'] = 'https://query1.finance.yahoo.com/v8/finance/chart/';
+		//validate that the provided settings are valid and log error if not
+
+
+
 	},
 
 	showElapsed: function () {

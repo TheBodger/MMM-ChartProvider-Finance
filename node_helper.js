@@ -100,7 +100,7 @@ module.exports = NodeHelper.create({
 
 		providerstorage[moduleinstance].config.financefeeds.forEach(function (configfeed) {
 
-			configfeed.stocks.forEach(function (stockfeed) {
+			configfeed.stocks.forEach(function (stockfeed,index) {
 
 				//amend the addresses in the config to dot notation depending on the input if prefixed by @
 				//all are full addresses with0ut the rootkey as that is used to extract the core of the JSON in yahoo
@@ -126,7 +126,7 @@ module.exports = NodeHelper.create({
 					if (dotnotationkeys[configfeed.subject] != null) { configfeed.subject = dotnotationkeys[configfeed.subject].replace(defaultrootkey + '.', ''); }
 				}
 
-				var feed = { sourcetitle: '', lastFeedDate: '', latestfeedpublisheddate: new Date(0), feedconfig: configfeed, stock: stockfeed};
+				var feed = { sourcetitle: '', lastFeedDate: '', latestfeedpublisheddate: new Date(0), feedconfig: configfeed, stock: stockfeed, stockname: (configfeed.stocknames == null) ? null : configfeed.stocknames[index]};
 
 				//we add some additional config information for usage in processing the data
 
@@ -141,6 +141,12 @@ module.exports = NodeHelper.create({
 					configfeed["runtime"] = new Date(moduleruntime.getTime() + (configfeed.timestamp * 1000));
 
 				}
+
+				//validate the yahoo options
+
+				if (['1d', '5d', '1mo', '3mo', '6mo', '1y', '2y', '5y', '10y', 'ytd', 'max'].indexOf(configfeed.periodrange) == -1) { console.error("period range option is incorrect"); };
+				if (['1m', '2m', '5m', '15m', '30m', '60m', '90m', '1h', '1d', '5d', '1wk', '1mo', '3mo'].indexOf(configfeed.interval) == -1) { console.error("interval option is incorrect"); };
+				if (configfeed.events != 'history') { console.error("events only supports 'history' as an option"); }
 
 				//store the actual timestamp to start filtering, this will change as new feeds are pulled to the latest date of those feeds
 				//if no date is available on a feed, then the current latest date of a feed published is allocated to it
@@ -158,8 +164,9 @@ module.exports = NodeHelper.create({
 
 		this.outputarray = new Array(totalfeedcount);
 
-		for (oidx = 0; oidx < totalfeedcount;oidx++) {this.outputarray[oidx]=[];}
-
+		for (oidx = 0; oidx < totalfeedcount; oidx++) {
+			this.outputarray[oidx] = [];
+		}
 
 	},
 
@@ -230,8 +237,6 @@ module.exports = NodeHelper.create({
 				var url = `${config.input}${feed.stock}?period1=${startperiod}&period2=${endperiod}&interval=${feedconfig.interval}&events=${feedconfig.events}`;
 			}
 
-			console.info(url);
-
 			tempconfig.input = url;
 
 			const options = new URL(url);
@@ -247,22 +252,31 @@ module.exports = NodeHelper.create({
 
 			JSONconfig['callback'] = function (JSONconfig, inputjson) {
 
-				//const req = https.request(options, (res) => {
-				//	// ...
-				//});
-
-				//var inputjson = JSONutils.getJSONnew(JSONconfig);
+				var jsonerror = utilities.getkeyedJSON(inputjson, feedconfig.errorkey);
 
 				var jsonarray = utilities.getkeyedJSON(inputjson, feedconfig.rootkey);
 
-				//check it actually contains something, assuming if empty it is in error
+				//check to see if we have an actual error to report
 
-				if (jsonarray.length == 0) {
-					console.error("json array is empty");
-					return null;
+				if (jsonerror != null) {
+					console.error(jsonerror.code, jsonerror.description);
 				}
 
-				self.queue.addtoqueue(function () { self.processfeed(JSONconfig.feed, JSONconfig.moduleinstance, JSONconfig.providerid, ++JSONconfig.feedidx, jsonarray); });
+				//check it actually contains something, assuming if empty it is in error
+				if (jsonarray != null) {
+					if (jsonarray.length == 0) {
+						console.error("json array is empty");
+						return null;
+					}
+				}
+				else {
+					console.error("json array is empty");
+					return null;
+                }
+
+				self.queue.addtoqueue(function () {
+					self.processfeed(JSONconfig.feed, JSONconfig.moduleinstance, JSONconfig.providerid, ++JSONconfig.feedidx, jsonarray);
+				});
 
 				self.queue.startqueue(providerstorage[JSONconfig.moduleinstance].config.waitforqueuetime); //the start function ignores a start once started
 			}
@@ -332,7 +346,7 @@ module.exports = NodeHelper.create({
 	},
 
 	//now to the core of the system, where there are most different to the feedprovider modules
-	//we enter this for wach of the financefeeds we want to create to send back for later processing
+	//we enter this for each of the financefeeds we want to create to send back for later processing
 
 	processfeed: function (feed, moduleinstance, providerid, feedidx, jsonarray) {
 
@@ -352,7 +366,6 @@ module.exports = NodeHelper.create({
 
 			var processthisitem = true;
 			var errcounter = 0;
-			//console.info(errcounter++,processthisitem);
 
 			var mainitem = new structures.NDTFItem()
 
@@ -361,7 +374,14 @@ module.exports = NodeHelper.create({
 			if (feed.feedconfig.subject != null) {
 
 				if (feed.feedconfig.subject == 'stock') {
-					mainitem.subject = feed.stock;
+
+					//check if we use provided names instead of the actual ticker
+					if (feed.feedconfig.usenames) {
+						mainitem.subject = feed.stockname;
+					}
+					else {
+						mainitem.subject = feed.stock;
+					}
 				}
 
 				else {
@@ -425,7 +445,7 @@ module.exports = NodeHelper.create({
 
 				for (var aidx = 0; aidx < valuearray.length; aidx++) {
 
-					processthisitem = true; //reset for each ite
+					processthisitem = true; //reset for each item
 
 					var tempitem = new structures.NDTFItem()
 
@@ -446,7 +466,7 @@ module.exports = NodeHelper.create({
 					}
 
 					//if the timestamp is requested do we have one of those as well
-					//removed all validation at the moment as this isnt genereic 
+					//removed all validation at the moment as this isn't generic 
 
 					//yahoo timestamps are seconds, so adjust to milliseconds
 
