@@ -470,30 +470,36 @@ module.exports = NodeHelper.create({
 
 					//yahoo timestamps are seconds, so adjust to milliseconds
 
+					//this appeared to ensure that we only process data from feeds that is timestampted arrived since the last iteration
+					//but it also appears to break finance processing
+					//so it is removed for time being and replaced with a simple, use the date of the item to see if i have already processed it
+
 					var temptimestamp = timestamparray[aidx];
 
 					if (temptimestamp != null) {
-
+		
 						temptimestamp = new Date(temptimestamp * 1000);
-
+		
 						maxfeeddate = new Date(Math.max(maxfeeddate, temptimestamp));
-
-						//console.info(temptimestamp, feed.latestfeedpublisheddate, tempitem.value);
-						//console.info(temptimestamp > feed.latestfeedpublisheddate);
-
-						if (temptimestamp > feed.latestfeedpublisheddate) {
-
+		
+						//if (temptimestamp > feed.latestfeedpublisheddate) {
+						//	tempitem.timestamp = temptimestamp;
+						//}
+						//else {
+						//	processthisitem = false;
+						//} //too old
+		
+						if (temptimestamp >= maxfeeddate) {
 							tempitem.timestamp = temptimestamp;
 						}
 						else {
 							processthisitem = false;
-							//console.info("Too old");
 						} //too old
-
+		
 					}
 					else { // use an offset timestamp
 						tempitem.timestamp = feed.feedconfig.adjustedruntime;
-					}
+						}
 
 					//we want to just capture any changes when looking for live updates (intraday) so this may need tweaking
 
